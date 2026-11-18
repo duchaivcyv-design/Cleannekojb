@@ -3,6 +3,7 @@
 //  Dopamine
 //
 //  Created by Lars Fröder on 23.09.23.
+//  Modified by Olimi Engine for Rootful iOS 16.0 - 16.7.16
 //
 
 #import <UIKit/UIKit.h>
@@ -19,15 +20,14 @@ int main(int argc, char * argv[]) {
                 [[DOEnvironmentManager sharedManager] deleteBootstrap];
             }
             else if (!strcmp(argv[2], "hide-jailbreak")) {
-                [[DOEnvironmentManager sharedManager] setJailbreakHidden:YES];
+                // Rootful không hỗ trợ ẩn jailbreak theo kiểu rootless
+                [[DOEnvironmentManager sharedManager] setJailbreakHidden:NO];
             }
             return 0;
         }
     }
     
     if (argc >= 2) {
-        // Legacy, called by Dopamine 1.x before initiating a jbupdate
-        // As updating from 1.x to 2.x is unsupported, just initiate a device reboot
         if (!strcmp(argv[1], "prepare_jbupdate")) {
             [[DOEnvironmentManager sharedManager] reboot];
             return 0;
@@ -35,13 +35,15 @@ int main(int argc, char * argv[]) {
     }
     
     if ([DOEnvironmentManager sharedManager].isJailbroken) {
-        setenv("PATH", "/sbin:/bin:/usr/sbin:/usr/bin:/var/jb/sbin:/var/jb/bin:/var/jb/usr/sbin:/var/jb/usr/bin", 1);
+        // --- OLIMI ROOTFUL PATH ENVIRONMENT SETUP ---
+        // Trỏ trực tiếp PATH vào phân vùng hệ thống gốc thay vì /var/jb giả lập
+        setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", 1);
         setenv("TERM", "xterm-256color", 1);
+        // ---------------------------------------------
     }
     
     NSString * appDelegateClassName;
     @autoreleasepool {
-        // Setup code that might create autoreleased objects goes here.
         appDelegateClassName = NSStringFromClass([DOAppDelegate class]);
     }
     return UIApplicationMain(argc, argv, nil, appDelegateClassName);

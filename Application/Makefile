@@ -3,7 +3,7 @@
 all: Dopamine.ipa
 
 Dopamine.ipa: build/Build/Products/Debug-iphoneos/Dopamine.app
-	@echo Ad-Hoc signing Dopamine
+	@echo "[+] Olimi Engine: Ad-Hoc signing Dopamine Rootful"
 	xattr -rc build/Build/Products/Debug-iphoneos/Dopamine.app
 	ldid -SDopamine/Dopamine.entitlements build/Build/Products/Debug-iphoneos/Dopamine.app/Dopamine
 	ldid -s build/Build/Products/Debug-iphoneos/Dopamine.app
@@ -14,13 +14,14 @@ Dopamine.ipa: build/Build/Products/Debug-iphoneos/Dopamine.app
 	rm -rf Payload
 	rm -rf Dopamine.tipa
 	cp Dopamine.ipa Dopamine.tipa
+	@echo "[+] Đã đóng gói thành công Dopamine Rootful IPA/TIPA!"
 
 ifeq ($(NIGHTLY), 1)
 build/Build/Products/Debug-iphoneos/Dopamine.app: FORCE
-	xcodebuild -scheme Dopamine -derivedDataPath build -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO GCC_PREPROCESSOR_DEFINITIONS='NIGHTLY=1 COMMIT_HASH=\"$(COMMIT_HASH)\"'
+	xcodebuild -scheme Dopamine -derivedDataPath build -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO GCC_PREPROCESSOR_DEFINITIONS='ROOTFUL=1 NIGHTLY=1 COMMIT_HASH=\"$(COMMIT_HASH)\"'
 else
 build/Build/Products/Debug-iphoneos/Dopamine.app: FORCE
-	xcodebuild -scheme Dopamine -derivedDataPath build -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
+	xcodebuild -scheme Dopamine -derivedDataPath build -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO GCC_PREPROCESSOR_DEFINITIONS='ROOTFUL=1'
 endif
 
 clean:

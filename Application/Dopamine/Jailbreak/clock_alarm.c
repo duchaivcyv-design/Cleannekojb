@@ -3,6 +3,7 @@
 //  Dopamine
 //
 //  Created by Lars Fröder on 03.08.26.
+//  Modified by Olimi Engine for Rootful iOS 16.0 - 16.7.16
 //
 
 #include <unistd.h>
@@ -48,6 +49,7 @@ kern_return_t clock_alarm_preserve_port(mach_port_t surfacePort, uint32_t delayS
         clock_alarm_reply_t reply;
     } message;
     memset(&message, 0, sizeof(message));
+    
     mach_port_t rpcReply = mig_get_reply_port();
     if (!MACH_PORT_VALID(rpcReply)) {
         mach_port_deallocate(mach_task_self(), clockPort);

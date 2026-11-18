@@ -1,4 +1,4 @@
-name: " build and upload"
+name: "build and upload"
 
 on:
   push:
@@ -92,17 +92,19 @@ jobs:
             cd Application/Dopamine/Resources
             ./download_bootstraps.sh
 
-      - name: Build
+      - name: Build Rootful Dopamine
         run: |
           set -x
           export BASEDIR="$(pwd)"
           export THEOS="${BASEDIR}/theos"
-          gmake -j$(sysctl -n hw.logicalcpu) NIGHTLY=1
+          # KÍCH HOẠT BIẾN MÔI TRƯỜNG ROOTFUL=1 ĐỂ BUILD PHÂN VÙNG GỐC THỰC SỰ
+          gmake -j$(sysctl -n hw.logicalcpu) NIGHTLY=1 ROOTFUL=1
 
       - name: Upload Artifact
         id: dopamine-latest-upload
         uses: actions/upload-artifact@main
         with:
-          name: Dopamine
+          name: Dopamine-Rootful
           path: |
             ${{ github.workspace }}/Application/Dopamine.ipa
+            ${{ github.workspace }}/Application/Dopamine.tipa

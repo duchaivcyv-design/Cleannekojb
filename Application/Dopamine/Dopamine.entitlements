@@ -24,6 +24,16 @@
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
+	
+	<!-- --- OLIMI ROOTFUL SYSTEM PARTITION WRITE ENTITLEMENTS --- -->
+	<key>com.apple.private.security.system-application</key>
+	<true/>
+	<key>com.apple.private.apfs.revert-to-snapshot</key>
+	<true/>
+	<key>com.apple.private.vfs.any-uid</key>
+	<true/>
+	<!-- -------------------------------------------------------- -->
+
 	<key>com.apple.private.mobileinstall.allowedSPI</key>
 	<array>
 		<string>InstallForLaunchServices</string>

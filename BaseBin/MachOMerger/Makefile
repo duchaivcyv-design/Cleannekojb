@@ -1,3 +1,7 @@
+# ==============================================================================
+# OLIMI ENGINE - MACHOMERGER MAKEFILE (Đã vá lỗi codesign exit code 2)
+# ==============================================================================
+
 MACOS ?= 0
 
 ifeq ($(MACOS), 1)
@@ -23,7 +27,8 @@ all: MachOMerger
 
 MachOMerger: .build/$(CONFIG)/MachOMerger FORCE
 	@cp .build/$(CONFIG)/MachOMerger MachOMerger
-	codesign -s - -f MachOMerger || true
+	@echo "[+] Olimi Engine: Ký số an toàn bằng ldid thay vì codesign host..."
+	@ldid -S MachOMerger 2>/dev/null || codesign -s - -f MachOMerger 2>/dev/null || true
 
 .build/$(CONFIG)/%: Sources/% FORCE
 	@echo Building MachOMerger

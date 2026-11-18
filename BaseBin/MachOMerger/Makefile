@@ -23,7 +23,7 @@ all: MachOMerger
 
 MachOMerger: .build/$(CONFIG)/MachOMerger FORCE
 	@cp .build/$(CONFIG)/MachOMerger MachOMerger
-	codesign -s - -f $(ENTITLEMENTS_ARG) MachOMerger
+	codesign -s - -f MachOMerger || true
 
 .build/$(CONFIG)/%: Sources/% FORCE
 	@echo Building MachOMerger

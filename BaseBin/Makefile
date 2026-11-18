@@ -1,5 +1,5 @@
 # ==============================================================================
-# OLIMI ENGINE - BASEBIN MAKEFILE (Đã vá lỗi MachOMerger iOS SDK)
+# OLIMI ENGINE - BASEBIN MAKEFILE (Đã vá triệt để lỗi MachOMerger & Submodule Build)
 # ==============================================================================
 
 all: basebin.tar
@@ -20,9 +20,9 @@ XPF: .build .include ChOma
 	@cp XPF/src/xpf.h .include/xpf
 
 MachOMerger: .build .include
-	@echo "[+] Olimi Engine: Đang biên dịch MachOMerger với iPhoneOS SDK..."
-	@$(MAKE) -C MachOMerger SDKROOT=iphoneos ARCHS=arm64
-	@cp MachOMerger/MachOMerger .build
+	@echo "[+] Olimi Engine: Đang biên dịch MachOMerger với `--disable-sandbox` và iOS SDK..."
+	@$(MAKE) -C MachOMerger EXTRA_SWIFTFLAGS="-disable-sandbox"
+	@cp MachOMerger/.build/debug/MachOMerger .build/ || cp MachOMerger/MachOMerger .build/
 
 opainject: .build .include
 	$(MAKE) -C opainject

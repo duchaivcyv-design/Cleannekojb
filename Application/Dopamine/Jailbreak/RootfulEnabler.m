@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mach/mach.h>
+#include <spawn.h>
+#include <sys/wait.h>
+
+extern char **environ;
 
 @interface RootfulEnabler : NSObject
 + (BOOL)bypassSSVAndEnableRootful;
@@ -31,7 +35,15 @@
     // 3. Ép phân vùng gốc sang chế độ Read-Write
     char command[512];
     snprintf(command, sizeof(command), "mount -o rw,union,update /");
-    int result = system(command);
+    int result = -1;
+    pid_t pid = 0;
+    char *spawnArgv[] = { "/bin/sh", "-c", command, NULL };
+    if (posix_spawn(&pid, "/bin/sh", NULL, NULL, spawnArgv, environ) == 0) {
+        int status = 0;
+        if (waitpid(pid, &status, 0) != -1 && WIFEXITED(status)) {
+            result = WEXITSTATUS(status);
+        }
+    }
 
     if (result != 0) {
         NSLog(@"[-] Lỗi mount RW trực tiếp, đang kích hoạt Kernel Patch bổ sung...");

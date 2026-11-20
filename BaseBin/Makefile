@@ -84,6 +84,8 @@ dopamine: .build .include libjailbreak XPF ChOma
 	rm -rf .include
 	mkdir -p .include
 	cp -r _external/include/* .include
+	# COPY LITEHOOK HEADER (DÒNG MỚI THÊM VÀO)
+	cp _external/litehook/external/include/litehook.h .include/
 ifneq (,$(wildcard $(shell xcrun --sdk iphoneos --show-sdk-path)/usr/include/xpc.modulemap))
 	rm -rf .include/xpc
 endif

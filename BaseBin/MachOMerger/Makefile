@@ -1,7 +1,3 @@
-# ==============================================================================
-# OLIMI ENGINE - MACHOMERGER MAKEFILE (FIXED - KHÔNG CHE LỖI BUILD)
-# ==============================================================================
-
 MACOS ?= 0
 
 ifeq ($(MACOS), 1)
@@ -27,15 +23,15 @@ all: MachOMerger
 
 MachOMerger: .build/$(CONFIG)/MachOMerger FORCE
 	@cp .build/$(CONFIG)/MachOMerger MachOMerger
-	@echo "[✅] MachOMerger build SUCCESS"
+	codesign -s - -f $(ENTITLEMENTS_ARG) MachOMerger
 
 .build/$(CONFIG)/%: Sources/% FORCE
-	@echo "[🔨] Building MachOMerger..."
+	@echo Building MachOMerger
 	swift build $(SWIFT_BUILD_ARGS)
-
+	
 build_clean:
 	rm -rf .build
-
+	
 clean: build_clean
 	rm -f MachOMerger
 

@@ -77,7 +77,7 @@
 {
     return @[
         @{
-            @"name": @"Cleannekojb",
+            @"name": @"Dopamine",
             @"file": @"LICENSE"
         },
         @{

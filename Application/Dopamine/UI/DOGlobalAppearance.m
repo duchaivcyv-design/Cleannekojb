@@ -78,10 +78,17 @@
 
 #pragma mark - Attributed Strings
 
++ (UIFont *)roundedFontOfSize:(CGFloat)size weight:(UIFontWeight)weight
+{
+    UIFontDescriptor *desc = [[UIFont systemFontOfSize:size weight:weight] fontDescriptor];
+    UIFontDescriptor *rounded = [desc fontDescriptorWithDesign:UIFontDescriptorSystemDesignRounded];
+    return rounded ? [UIFont fontWithDescriptor:rounded size:size] : [UIFont systemFontOfSize:size weight:weight];
+}
+
 + (NSAttributedString*)mainSubtitleString:(NSString*)string
 {
     return [[NSAttributedString alloc] initWithString:string attributes:@{
-        NSFontAttributeName: [UIFont systemFontOfSize:14 weight:UIFontWeightMedium],
+        NSFontAttributeName: [DOGlobalAppearance roundedFontOfSize:15 weight:UIFontWeightSemibold],
         NSForegroundColorAttributeName: [UIColor whiteColor],
     }];
 }
@@ -89,7 +96,7 @@
 + (NSAttributedString*)secondarySubtitleString:(NSString*)string
 {
     return [[NSAttributedString alloc] initWithString:string attributes:@{
-        NSFontAttributeName: [UIFont systemFontOfSize:14 weight:UIFontWeightRegular],
+        NSFontAttributeName: [DOGlobalAppearance roundedFontOfSize:13 weight:UIFontWeightRegular],
         NSForegroundColorAttributeName: [UIColor colorWithWhite:1 alpha:0.60],
     }];
 }

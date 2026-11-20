@@ -20,9 +20,9 @@
     if (self = [super init]) {
         UIStackView *stackView = [[UIStackView alloc] init];
         stackView.axis = UILayoutConstraintAxisVertical;
-        stackView.spacing = 2;
+        stackView.spacing = 6;
         stackView.translatesAutoresizingMaskIntoConstraints = NO;
-        stackView.alignment = UIStackViewAlignmentLeading;
+        stackView.alignment = UIStackViewAlignmentCenter;
 
         [self addSubview:stackView];
 

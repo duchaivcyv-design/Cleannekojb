@@ -38,7 +38,7 @@
 {
     UIStackView *stackView = [[UIStackView alloc] init];
     [stackView setAxis:UILayoutConstraintAxisVertical];
-    [stackView setAlignment:UIStackViewAlignmentTrailing];
+    [stackView setAlignment:UIStackViewAlignmentCenter];
     [stackView setDistribution:UIStackViewDistributionEqualSpacing];
     [stackView setTranslatesAutoresizingMaskIntoConstraints:NO];
 

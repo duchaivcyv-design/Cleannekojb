@@ -1,12 +1,3 @@
-#all: mktemp choma
-
-#mktemp:
-#	rm -rf .build-dir
-#	mkdir .build-dir
-
-#choma:
-#	$(MAKE) -C ChOma TARGET=ios DISABLE_SIGNING=1 DYLIB_LDFLAGS="-install_name @loader_path/libchoma.dylib" $@
-
 all: basebin.tar
 
 subprojects: ChOma XPF MachOMerger opainject libjailbreak systemhook forkfix launchdhook hookd boomerang jbctl idownloadd watchdoghook rootlesshooks dopamine
@@ -88,6 +79,7 @@ dopamine: .build .include libjailbreak XPF ChOma
 	rm -rf .include
 	mkdir -p .include
 	cp -r _external/include/* .include
+
 # If the SDK already ships XPC (it does so in iOS 17.4+), remove the local copy of it
 ifneq (,$(wildcard $(shell xcrun --sdk iphoneos --show-sdk-path)/usr/include/xpc.modulemap))
 	rm -rf .include/xpc

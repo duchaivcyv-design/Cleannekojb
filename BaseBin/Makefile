@@ -1,6 +1,11 @@
-# ==============================================================================
-# OLIMI ENGINE - BASEBIN MAKEFILE (Đã vá triệt để lỗi MachOMerger & Submodule Build)
-# ==============================================================================
+#all: mktemp choma
+
+#mktemp:
+#	rm -rf .build-dir
+#	mkdir .build-dir
+
+#choma:
+#	$(MAKE) -C ChOma TARGET=ios DISABLE_SIGNING=1 DYLIB_LDFLAGS="-install_name @loader_path/libchoma.dylib" $@
 
 all: basebin.tar
 
@@ -20,9 +25,8 @@ XPF: .build .include ChOma
 	@cp XPF/src/xpf.h .include/xpf
 
 MachOMerger: .build .include
-	@echo "[+] Olimi Engine: Đang biên dịch MachOMerger với `--disable-sandbox` và iOS SDK..."
-	@$(MAKE) -C MachOMerger EXTRA_SWIFTFLAGS="-disable-sandbox"
-	@cp MachOMerger/.build/debug/MachOMerger .build/ || cp MachOMerger/MachOMerger .build/
+	@$(MAKE) -C MachOMerger
+	@cp MachOMerger/MachOMerger .build
 
 opainject: .build .include
 	$(MAKE) -C opainject
@@ -84,8 +88,7 @@ dopamine: .build .include libjailbreak XPF ChOma
 	rm -rf .include
 	mkdir -p .include
 	cp -r _external/include/* .include
-	# COPY LITEHOOK HEADER (DÒNG MỚI THÊM VÀO)
-	cp _external/litehook/external/include/litehook.h .include/
+# If the SDK already ships XPC (it does so in iOS 17.4+), remove the local copy of it
 ifneq (,$(wildcard $(shell xcrun --sdk iphoneos --show-sdk-path)/usr/include/xpc.modulemap))
 	rm -rf .include/xpc
 endif
@@ -94,6 +97,7 @@ basebin.tc: subprojects
 	trustcache create .build/basebin.tc .build
 	cp .build/basebin.tc basebin.tc
 
+# dyldhook dylibs do not need to be added to the basebin trustcache
 dyldhook: basebin.tc
 	$(MAKE) -C dyldhook
 	@cp dyldhook/*.dylib .build

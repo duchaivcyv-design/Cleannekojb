@@ -16,7 +16,13 @@
 #import <sys/mount.h>
 #import <dlfcn.h>
 #import <sys/stat.h>
+#import <spawn.h>
+#import <stdlib.h>
+#import <string.h>
+#import <stdio.h>
 #import "NSString+Version.h"
+
+extern char **environ;
 
 #define LIBKRW_DOPAMINE_BUNDLED_VERSION @"2.0.3"
 #define LIBROOT_DOPAMINE_BUNDLED_VERSION @"1.0.1"
@@ -99,17 +105,15 @@ NSString *const bootstrapErrorDomain = @"BootstrapErrorDomain";
 - (int)remountPrivatePrebootWritable:(BOOL)writable
 {
     // Ép buộc mount phân vùng gốc / sang trạng thái Read-Write để bẻ văng SSV
+    (void)writable;
     const char *rootPath = "/";
     struct statfs rootStfs;
     int r = statfs(rootPath, &rootStfs);
     if (r != 0) return r;
-    
+
     uint32_t flags = MNT_UPDATE | MNT_RELOAD;
-    struct hfs_mount_args mntargs = {
-        .fspec = rootStfs.f_mntfromname,
-        .hfs_mask = 0,
-    };
-    return mount("apfs", rootPath, flags, &mntargs);
+    // Không truyền struct hfs_mount_args (đã bị xóa ở bản này); mount(2) chấp nhận data = NULL
+    return mount("apfs", rootPath, flags, NULL);
 }
 
 - (NSError *)ensurePrivatePrebootIsWritable

@@ -370,7 +370,18 @@ extern char **environ;
 
 - (NSString *)accessibleKernelPath
 {
-    return @"/System/Library/Caches/com.apple.kernelcaches/kernelcache";
+    // Try the system kernelcache first, then the active preboot copy (iOS 16 keeps it there on many devices).
+    // Use the first candidate the app can actually read so XPF does not fail with "Failed to open kernelcache".
+    NSString *systemPath = @"/System/Library/Caches/com.apple.kernelcaches/kernelcache";
+    NSString *prebootPath = [[self activePrebootPath] stringByAppendingPathComponent:@"System/Library/Caches/com.apple.kernelcaches/kernelcache"];
+
+    NSArray<NSString *> *candidates = prebootPath ? @[systemPath, prebootPath] : @[systemPath];
+    for (NSString *candidate in candidates) {
+        if (access(candidate.fileSystemRepresentation, R_OK) == 0) {
+            return candidate;
+        }
+    }
+    return systemPath;
 }
 
 - (NSString *)accessibleSPTMPath

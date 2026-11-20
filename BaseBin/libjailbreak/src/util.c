@@ -21,6 +21,7 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <stdatomic.h>
+#include <stdint.h>
 #include <errno.h>
 extern char **environ;
 
@@ -1412,20 +1413,37 @@ int convert_hex_string_to_data(const char *string, void *outBuf)
 char *boot_manifest_hash(void)
 {
 	static char *gBuf = NULL;
-	
+
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
 		io_registry_entry_t registryEntry = IORegistryEntryFromPath(kIOMainPortDefault, "IODeviceTree:/chosen");
-		if (registryEntry) {
-			CFDataRef bootManifestHashData = IORegistryEntryCreateCFProperty(registryEntry, CFSTR("boot-manifest-hash"), NULL, 0);
-			CFIndex bootManifestHashLength = CFDataGetLength(bootManifestHashData);
+		if (!registryEntry) return;
 
-			gBuf = malloc((bootManifestHashLength * 2 * sizeof(char)) + sizeof(char));
-			unsigned char *buf = (unsigned char *)CFDataGetBytePtr(bootManifestHashData);
-			convert_data_to_hex_string(buf, bootManifestHashLength, gBuf);
+		CFTypeRef bootManifestProperty = IORegistryEntryCreateCFProperty(registryEntry, CFSTR("boot-manifest-hash"), NULL, 0);
+		IOObjectRelease(registryEntry);
 
-			CFRelease(bootManifestHashData);
+		if (!bootManifestProperty || CFGetTypeID(bootManifestProperty) != CFDataGetTypeID()) {
+			if (bootManifestProperty) CFRelease(bootManifestProperty);
+			return;
 		}
+
+		CFDataRef bootManifestHashData = (CFDataRef)bootManifestProperty;
+		CFIndex bootManifestHashLength = CFDataGetLength(bootManifestHashData);
+		const UInt8 *buf = CFDataGetBytePtr(bootManifestHashData);
+
+		if (bootManifestHashLength <= 0 || !buf ||
+		    (uint64_t)bootManifestHashLength > ((uint64_t)SIZE_MAX - 1) / 2) {
+			CFRelease(bootManifestHashData);
+			return;
+		}
+
+		size_t outputLength = ((size_t)bootManifestHashLength * 2) + 1;
+		gBuf = malloc(outputLength);
+		if (gBuf) {
+			convert_data_to_hex_string(buf, (size_t)bootManifestHashLength, gBuf);
+		}
+
+		CFRelease(bootManifestHashData);
 	});
 
 	return gBuf;

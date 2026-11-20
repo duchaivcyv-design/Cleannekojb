@@ -11,6 +11,9 @@
 
 #import <sys/sysctl.h>
 #import <sys/mount.h>
+#import <spawn.h>
+#import <stdlib.h>
+#import <string.h>
 #import <sys/utsname.h>
 #import <sys/stat.h>
 #import <unistd.h>
@@ -117,9 +120,6 @@ extern char **environ;
     int status = posix_spawn(&pid, "/sbin/mount", NULL, NULL, (char *const*)mount_args, environ);
     if (status != 0) {
         NSLog(@"[-] Cảnh báo: Mount RW trực tiếp thất bại, kích hoạt ép buộc Kernel Vnode Unseal...");
-        // Thực hiện gỡ bỏ cờ MNT_RDONLY trong kernel vnode trực tiếp
-        int (*unseal_fs)(void) = (int (*)(void))0; // Sẽ được liên kết qua kinfo
-        // Giả lập APFS unseal thành công qua phân vùng Bind
     }
 
     // Thiết lập Procursus Rootful trực tiếp tại /

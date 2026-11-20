@@ -62,7 +62,7 @@ jobs:
           rm $THEOS/sdks/iPhoneOS16.5.sdk.tar
           cd $BASEDIR
 
-            - name: Build trustcache (NO SUDO COPY)
+      - name: Build trustcache (NO SUDO COPY)
         run: |
           set -x
           git clone https://github.com/CRKatri/trustcache

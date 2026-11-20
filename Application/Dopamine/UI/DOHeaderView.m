@@ -7,6 +7,7 @@
 
 #import "DOHeaderView.h"
 #import "DOThemeManager.h"
+#import <math.h>
 
 @interface DOHeaderView ()
 
@@ -39,9 +40,24 @@
         self.logoView.image = [image imageWithAlignmentRectInsets:UIEdgeInsetsMake(7, 0, -7, 0)];
         [stackView addArrangedSubview:self.logoView];
 
+        // Use a valid positive aspect ratio even when the supplied image is missing
+        // or has invalid dimensions. NSLayoutConstraint rejects a non-finite multiplier.
+        CGFloat logoAspectRatio = 1.0;
+        CGSize logoSize = image.size;
+        if (image &&
+            isfinite(logoSize.width) &&
+            isfinite(logoSize.height) &&
+            logoSize.width > 0.0 &&
+            logoSize.height > 0.0) {
+            CGFloat candidateRatio = logoSize.width / logoSize.height;
+            if (isfinite(candidateRatio) && candidateRatio > 0.0) {
+                logoAspectRatio = candidateRatio;
+            }
+        }
+
         [NSLayoutConstraint activateConstraints:@[
             [self.logoView.heightAnchor constraintEqualToConstant:40],
-            [self.logoView.widthAnchor constraintEqualToAnchor:self.logoView.heightAnchor multiplier:image.size.width / image.size.height],
+            [self.logoView.widthAnchor constraintEqualToAnchor:self.logoView.heightAnchor multiplier:logoAspectRatio],
         ]];
 
         //3 - Add our subtitles to our stack

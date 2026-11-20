@@ -1,5 +1,5 @@
 # ==============================================================================
-# OLIMI ENGINE - MACHOMERGER MAKEFILE (Vá triệt để Exit Code 0 tuyệt đối)
+# OLIMI ENGINE - MACHOMERGER MAKEFILE (FIXED - KHÔNG CHE LỖI BUILD)
 # ==============================================================================
 
 MACOS ?= 0
@@ -27,16 +27,15 @@ all: MachOMerger
 
 MachOMerger: .build/$(CONFIG)/MachOMerger FORCE
 	@cp .build/$(CONFIG)/MachOMerger MachOMerger
-	@echo "[+] Olimi Engine: Bỏ qua ký số host, đảm bảo Exit Code 0 tuyệt đối."
-	@exit 0
+	@echo "[✅] MachOMerger build SUCCESS"
 
 .build/$(CONFIG)/%: Sources/% FORCE
-	@echo Building MachOMerger
-	swift build $(SWIFT_BUILD_ARGS) || exit 0
-	
+	@echo "[🔨] Building MachOMerger..."
+	swift build $(SWIFT_BUILD_ARGS)
+
 build_clean:
 	rm -rf .build
-	
+
 clean: build_clean
 	rm -f MachOMerger
 

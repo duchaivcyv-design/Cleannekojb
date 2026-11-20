@@ -74,6 +74,11 @@ jobs:
           # sudo cp trustcache /opt/procursus/bin/
           # === THAY BẰNG COPY VÀO THƯ MỤC WORKSPACE TRƯỚC (sau này copy thủ công) ===
           cp trustcache $GITHUB_WORKSPACE/trustcache-bin
+          # Makefile gọi lệnh `trustcache` từ PATH -> đưa binary vào PATH cho các step sau
+          mkdir -p $GITHUB_WORKSPACE/tc-bin
+          cp trustcache $GITHUB_WORKSPACE/tc-bin/trustcache
+          chmod +x $GITHUB_WORKSPACE/tc-bin/trustcache
+          echo "$GITHUB_WORKSPACE/tc-bin" >> $GITHUB_PATH
 
       - name: Set Environment Variables
         run: |

@@ -98,8 +98,36 @@ extern char **environ;
 
 - (NSString *)activePrebootPath
 {
-    NSString *bootManifestString = [NSString stringWithUTF8String:boot_manifest_hash()];
-    return [[self privatePrebootPath] stringByAppendingPathComponent:bootManifestString];
+    const char *hash = boot_manifest_hash();
+    if (!hash) return nil;
+
+    // The boot-manifest hash is hexadecimal data. Validate it before
+    // passing the bytes to Foundation, which can throw on malformed input.
+    size_t hashLength = strnlen(hash, 129);
+    if (hashLength == 0 || hashLength > 128 || (hashLength & 1) != 0) {
+        return nil;
+    }
+
+    for (size_t i = 0; i < hashLength; i++) {
+        char c = hash[i];
+        BOOL isHexDigit = (c >= '0' && c <= '9') ||
+                          (c >= 'a' && c <= 'f') ||
+                          (c >= 'A' && c <= 'F');
+        if (!isHexDigit) return nil;
+    }
+
+    NSString *bootManifestString =
+        [[NSString alloc] initWithBytes:hash
+                                 length:hashLength
+                               encoding:NSASCIIStringEncoding];
+    if (!bootManifestString || bootManifestString.length != hashLength) {
+        return nil;
+    }
+
+    NSString *prebootPath = [self privatePrebootPath];
+    if (prebootPath.length == 0) return nil;
+
+    return [prebootPath stringByAppendingPathComponent:bootManifestString];
 }
 
 - (void)locateJailbreakRoot
@@ -373,7 +401,8 @@ extern char **environ;
     // Try the system kernelcache first, then the active preboot copy (iOS 16 keeps it there on many devices).
     // Use the first candidate the app can actually read so XPF does not fail with "Failed to open kernelcache".
     NSString *systemPath = @"/System/Library/Caches/com.apple.kernelcaches/kernelcache";
-    NSString *prebootPath = [[self activePrebootPath] stringByAppendingPathComponent:@"System/Library/Caches/com.apple.kernelcaches/kernelcache"];
+    NSString *activePreboot = [self activePrebootPath];
+    NSString *prebootPath = activePreboot ? [activePreboot stringByAppendingPathComponent:@"System/Library/Caches/com.apple.kernelcaches/kernelcache"] : nil;
 
     NSArray<NSString *> *candidates = prebootPath ? @[systemPath, prebootPath] : @[systemPath];
     for (NSString *candidate in candidates) {

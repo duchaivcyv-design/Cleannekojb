@@ -398,37 +398,46 @@ extern char **environ;
 
 - (NSString *)accessibleKernelPath
 {
-    NSString *systemPath = @"/System/Library/Caches/com.apple.kernelcaches/kernelcache";
-    NSString *activePreboot = [self activePrebootPath];
-    NSString *prebootPath = activePreboot ? [activePreboot stringByAppendingPathComponent:@"System/Library/Caches/com.apple.kernelcaches/kernelcache"] : nil;
-    NSString *bundlePath = [[NSBundle mainBundle] pathForResource:@"kernelcache" ofType:nil];
-    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject stringByAppendingPathComponent:@"kernelcache"];
+    // 1. Kiểm tra kernelcache có sẵn trong Bundle app
+    NSString *kernelInApp = [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"kernelcache"];
+    if ([[NSFileManager defaultManager] fileExistsAtPath:kernelInApp]) {
+        NSLog(@"[+] Kernelcache tìm thấy trong Bundle: %@", kernelInApp);
+        return kernelInApp;
+    }
 
-    NSMutableArray<NSString *> *candidates = [NSMutableArray array];
-    if (systemPath) [candidates addObject:systemPath];
-    if (prebootPath) [candidates addObject:prebootPath];
-    if (bundlePath) [candidates addObject:bundlePath];
-    if (documentsPath) [candidates addObject:documentsPath];
+    // 2. Kiểm tra trong Documents (phòng trường hợp đã tải trước đó)
+    NSString *kernelInDocs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/kernelcache"];
+    if ([[NSFileManager defaultManager] fileExistsAtPath:kernelInDocs]) {
+        NSLog(@"[+] Kernelcache tìm thấy trong Documents: %@", kernelInDocs);
+        return kernelInDocs;
+    }
 
-    // 1. Trước tiên tìm những cái đã có sẵn
-    for (NSString *candidate in candidates) {
-        if (access(candidate.fileSystemRepresentation, R_OK) == 0) {
-            NSLog(@"[+] Tìm thấy kernelcache cục bộ: %@", candidate);
-            return candidate;
+    // 3. Kiểm tra trong preboot (nếu có quyền)
+    if ([self isInstalledThroughTrollStore] || getuid() == 0) {
+        NSString *kernelcachePath = [[self activePrebootPath] stringByAppendingPathComponent:@"System/Library/Caches/com.apple.kernelcaches/kernelcache"];
+        if ([[NSFileManager defaultManager] fileExistsAtPath:kernelcachePath]) {
+            NSLog(@"[+] Kernelcache tìm thấy trong preboot: %@", kernelcachePath);
+            return kernelcachePath;
         }
     }
 
-    // 2. Đều không có? Dùng libgrabkernel2 tự tải xuống
-    NSLog(@"[-] Tất cả đường dẫn cục bộ đều không có, thử dùng libgrabkernel2 tải xuống...");
-    NSString *downloadedPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"kernelcache_downloaded"];
-    BOOL ok = grab_kernelcache(downloadedPath);
-    if (ok && access(downloadedPath.fileSystemRepresentation, R_OK) == 0) {
-        NSLog(@"[+] libgrabkernel2 tải xuống thành công: %@", downloadedPath);
-        return downloadedPath;
+    // 4. Không có ở đâu cả -> Tải bằng libgrabkernel2
+    NSLog(@"[-] Không tìm thấy kernelcache cục bộ, bắt đầu tải bằng libgrabkernel2...");
+    [[DOUIManager sharedInstance] sendLog:@"Downloading Kernel" debug:NO];
+    
+    NSString *docsDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+    if (grab_images(docsDir) == false) {
+        NSLog(@"[-] libgrabkernel2 tải thất bại!");
+        return nil;
     }
 
-    NSLog(@"[-] libgrabkernel2 cũng tải xuống thất bại");
-    return systemPath; // Trả về mặc định, để tầng trên báo lỗi
+    if ([[NSFileManager defaultManager] fileExistsAtPath:kernelInDocs]) {
+        NSLog(@"[+] libgrabkernel2 tải thành công: %@", kernelInDocs);
+        return kernelInDocs;
+    }
+
+    NSLog(@"[-] grab_images báo thành công nhưng không thấy file kernelcache trong Documents!");
+    return nil;
 }
 
 - (NSString *)accessibleSPTMPath

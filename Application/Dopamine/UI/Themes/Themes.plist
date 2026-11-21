@@ -6,13 +6,13 @@
 		<key>key</key>
 		<string>default</string>
 		<key>name</key>
-		<string>TaoJB</string>
+		<string>Dopamine</string>
 		<key>image</key>
 		<string>Background_Green.jpg</string>
 		<key>actionMenuColor</key>
-		<string>8C1E1E2E</string>
+		<string>723f3f3f</string>
 		<key>windowColor</key>
-		<string>9912121C</string>
+		<string>994c4c4c</string>
 		<key>blur</key>
 		<integer>18</integer>
 		<key>titleShadow</key>

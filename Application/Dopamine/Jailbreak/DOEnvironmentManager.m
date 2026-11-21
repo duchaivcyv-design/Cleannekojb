@@ -1,10 +1,4 @@
-//
-//  EnvironmentManager.m
-//  Dopamine
-//
-//  Created by Lars Fröder on 10.01.24.
-//  Modified by Olimi Engine for Rootful iOS 16.0 - 16.7.16 (SSV Bypass)
-//
+// ../../Application/Dopamine/Jailbreak/DOEnvironmentManager.m
 
 #import "DOEnvironmentManager.h"
 #import "UIImage+JPEG2000.h"
@@ -28,6 +22,7 @@
 #import <libjailbreak/kernel.h>
 #import <libjailbreak/primitives.h>
 #import <IOKit/IOKitLib.h>
+#import <xpf.h> // Giả định xpf.h chứa khai báo của xpf_item_resolve
 
 #import "DOUIManager.h"
 #import "DOExploitManager.h"

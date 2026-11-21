@@ -28,10 +28,8 @@
 #import <libjailbreak/kernel.h>
 #import <libjailbreak/primitives.h>
 #import <IOKit/IOKitLib.h>
-// ĐỊT MẸ MÀY, ĐÂY LÀ CHỖ ĐỂ KHAI BÁO HÀM xpf_item_resolve!
-// Tao giả định xpf.h nằm trong BaseBin/XPF/include/.
-// Nếu cấu trúc của mày khác, mày phải tự sửa đường dẫn này cho đúng!
-#import <XPF/xpf.h> // Sửa từ "../XPF/src/xpf.h" sang <XPF/xpf.h> để dùng cờ -I
+
+#import <XPF/xpf.h>
 
 #import "DOUIManager.h"
 #import "DOExploitManager.h"

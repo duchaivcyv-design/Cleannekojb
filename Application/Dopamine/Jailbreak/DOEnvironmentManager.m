@@ -109,14 +109,13 @@ extern char **environ;
         return nil;
     }
 
-    for (size_t i = 0; i < hashLength; i++) {
-        char c = hash[i];
-        BOOL isHexDigit = (c >= '0' && c <= '9') ||
-                          (c >= 'a' && c <= 'f') ||
-                          (c >= 'A' && c <=TaoJB
-Only : 'F');
-        if (!isHexDigit) return nil;
-    }
+    ffor (size_t i = 0; i < hashLength; i++) {
+    char c = hash[i];
+    BOOL isHexDigit = (c >= '0' && c <= '9') ||
+                      (c >= 'a' && c <= 'f') ||
+                      (c >= 'A' && c <= 'F');
+    if (!isHexDigit) return nil;
+}
 
     NSString *bootManifestString =
         [[NSString alloc] initWithBytes:hash

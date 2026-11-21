@@ -69,8 +69,35 @@ typedef NS_ENUM(NSInteger, JBErrorCode) {
 - (NSError *)gatherSystemInformation
 {
     NSString *kernelPath = [[DOEnvironmentManager sharedManager] accessibleKernelPath];
-    if (!kernelPath) return [NSError errorWithDomain:JBErrorDomain code:JBErrorCodeFailedToFindKernel userInfo:@{NSLocalizedDescriptionKey:@"Failed to find kernelcache. Ensure your device is properly connected to the internet. If it still does not work, try installing Dopamine via TrollStore instead."}];
-    NSLog(@"Kernel at %@", kernelPath);
+    if (!kernelPath) {
+        return [NSError errorWithDomain:JBErrorDomain code:JBErrorCodeFailedToFindKernel userInfo:@{NSLocalizedDescriptionKey:@"Failed to find kernelcache. Ensure your device is properly connected to the internet. If it still does not work, try installing Dopamine via TrollStore instead."}];
+    }
+    
+    NSLog(@"[+] Đường dẫn kernelcache ban đầu: %@", kernelPath);
+
+    // --- BẮT ĐẦU FIX LỖI "Failed to open kernelcache" ---
+    // Di chuyển/Copy kernelcache ra thư mục tạm để tránh bị Sandbox hoặc lỗi Permission
+    NSString *safeKernelPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"kernelcache_xpf"];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    
+    // Xóa file cũ nếu tồn tại
+    if ([fm fileExistsAtPath:safeKernelPath]) {
+        [fm removeItemAtPath:safeKernelPath error:nil];
+    }
+    
+    NSError *copyError = nil;
+    [fm copyItemAtPath:kernelPath toPath:safeKernelPath error:&copyError];
+    
+    if (!copyError) {
+        // Cấp quyền đọc/ghi toàn cục (0644) cho file vừa copy
+        chmod(safeKernelPath.fileSystemRepresentation, 0644);
+        kernelPath = safeKernelPath;
+        NSLog(@"[+] Đã copy kernelcache sang thư mục tạm an toàn: %@", kernelPath);
+    } else {
+        NSLog(@"[-] Cảnh báo: Không thể copy kernelcache ra thư mục tạm: %@", copyError.localizedDescription);
+        // Nếu copy lỗi, vẫn thử dùng đường dẫn cũ
+    }
+    // --- KẾT THÚC FIX LỖI ---
 
     NSString *sptmPath = [[DOEnvironmentManager sharedManager] accessibleSPTMPath];
     if (sptmPath) {
@@ -83,7 +110,9 @@ typedef NS_ENUM(NSInteger, JBErrorCode) {
     
     [[DOUIManager sharedInstance] sendLog:DOLocalizedString(@"Patchfinding") debug:NO];
     
+    // Gọi XPF với đường dẫn an toàn
     int r = xpf_start_with_kernel_path(kernelPath.fileSystemRepresentation, sptmPath ? sptmPath.fileSystemRepresentation : NULL, txmPath ? txmPath.fileSystemRepresentation : NULL);
+    
     if (r == 0) {
         char *sets[] = {
             "translation",
@@ -139,6 +168,8 @@ typedef NS_ENUM(NSInteger, JBErrorCode) {
         xpf_stop();
     }
     else {
+        // In ra mã lỗi hệ thống (errno) để dễ debug
+        NSLog(@"[-] XPF start failed. Errno: %s (Code: %d)", strerror(errno), errno);
         NSError *error = [NSError errorWithDomain:JBErrorDomain code:JBErrorCodeFailedKernelPatchfinding userInfo:@{NSLocalizedDescriptionKey:[NSString stringWithFormat:@"XPF start failed with error: (%s)", xpf_get_error()]}];
         xpf_stop();
         return error;
@@ -147,8 +178,6 @@ typedef NS_ENUM(NSInteger, JBErrorCode) {
     jbinfo_initialize_dynamic_offsets(_systemInfoXdict);
     jbinfo_initialize_hardcoded_offsets();
 
-    // Stash app identifier into jailbreakInfo
-    // This will later allow launchdhook to figure out which process is the dopamine app
     if ([NSBundle mainBundle].bundleIdentifier) {
         gSystemInfo.jailbreakInfo.appIdentifier = strdup([NSBundle mainBundle].bundleIdentifier.UTF8String);
     }

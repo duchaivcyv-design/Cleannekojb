@@ -25,8 +25,10 @@
 #import <libjailbreak/display.h>
 #import <libjailbreak/machine_info.h>
 #import <libjailbreak/carboncopy.h>
-
+#import <libjailbreak/kernel.h>
+#import <libjailbreak/primitives.h>
 #import <IOKit/IOKitLib.h>
+
 #import "DOUIManager.h"
 #import "DOExploitManager.h"
 #import "DOPreferenceManager.h"
@@ -140,20 +142,56 @@ extern char **environ;
 {
     NSError *error = nil;
     
-    // --- OLIMI ROOTFUL SSV & APFS SNAPSHOT BYPASS ---
     NSLog(@"[+] Olimi Engine: Tiến hành bẻ văng SSV và mở khóa phân vùng APFS Root Read-Write trên iOS 16...");
     
-    const char *mount_args[] = {"/sbin/mount", "-u", "-o", "rw,union", "/", NULL};
-    pid_t pid;
-    int status = posix_spawn(&pid, "/sbin/mount", NULL, NULL, (char *const*)mount_args, environ);
-    if (status != 0) {
-        NSLog(@"[-] Cảnh báo: Mount RW trực tiếp thất bại, kích hoạt ép buộc Kernel Vnode Unseal...");
+    // 1. Lấy root vnode từ kernel
+    // Trong libjailbreak, thường có hàm get_rootvnode() hoặc mày có thể lấy qua ksymbol
+    uint64_t rootvnode = 0;
+    if (ksymbol(rootvnode)) {
+        rootvnode = kread_ptr(ksymbol(rootvnode));
+    } else {
+        // Fallback nếu không có symbol, thử dùng hàm có sẵn
+        // rootvnode = get_rootvnode(); 
+        NSLog(@"[-] Không tìm thấy symbol rootvnode, thử fallback...");
     }
 
-    // Thiết lập Procursus Rootful trực tiếp tại /
+    if (!rootvnode) {
+        NSLog(@"[-] Không thể lấy rootvnode từ kernel.");
+        return [NSError errorWithDomain:@"OlimiEngine" code:1 userInfo:@{NSLocalizedDescriptionKey:@"Failed to get rootvnode"}];
+    }
+
+    // 2. Lấy mount structure từ vnode
+    uint64_t v_mount = kread_ptr(rootvnode + koffsetof(vnode, v_mount));
+    if (!v_mount) {
+        NSLog(@"[-] Không thể lấy mount structure từ rootvnode.");
+        return [NSError errorWithDomain:@"OlimiEngine" code:2 userInfo:@{NSLocalizedDescriptionKey:@"Failed to get v_mount"}];
+    }
+
+    // 3. Gỡ cờ MNT_RDONLY (0x1) trong mnt_flag
+    uint32_t mnt_flag = kread32(v_mount + koffsetof(mount, mnt_flag));
+    if (mnt_flag & 0x1) {
+        mnt_flag &= ~0x1;
+        kwrite32(v_mount + koffsetof(mount, mnt_flag), mnt_flag);
+        NSLog(@"[+] Đã gỡ cờ MNT_RDONLY trên mount structure.");
+    } else {
+        NSLog(@"[+] Cờ MNT_RDONLY đã được gỡ trước đó.");
+    }
+
+    // 4. (Tùy chọn) Gỡ cờ VROOT hoặc các cờ liên quan trong vnode nếu cần
+    // uint32_t v_flag = kread32(rootvnode + koffsetof(vnode, v_flag));
+    // v_flag &= ~0x1; // Ví dụ: xóa VROOT
+    // kwrite32(rootvnode + koffsetof(vnode, v_flag), v_flag);
+
+    // 5. Thử tạo thư mục /procursus
     NSString *bootstrapPath = @"/procursus";
     if (![[NSFileManager defaultManager] fileExistsAtPath:bootstrapPath]) {
         [[NSFileManager defaultManager] createDirectoryAtPath:bootstrapPath withIntermediateDirectories:YES attributes:nil error:&error];
+        if (error) {
+            NSLog(@"[-] Lỗi tạo thư mục /procursus: %@", error.localizedDescription);
+            // Nếu vẫn lỗi read-only, có thể cần xử lý thêm (xóa snapshot, v.v.)
+        } else {
+            NSLog(@"[+] Đã tạo thư mục /procursus thành công.");
+        }
     }
     
     gSystemInfo.jailbreakInfo.rootPath = strdup("/");

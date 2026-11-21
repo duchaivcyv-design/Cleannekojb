@@ -2,6 +2,7 @@
 
 # Cleannekojb
 
-A rootless - rootful semi-untethered jailbreak for iOS 15.0 - 17.3.1 (arm64e), iOS 15.0 - 18.7.1, 26.0 - 26.0.1 (A12/A13) and iOS 15.0 - 18.7.1 (arm64). More details will follow here soon.
+A rootless - rootful semi-untethered jailbreak for iOS 16.0 - 16.7.16 (arm64e), iOS 16 - 16.7.16, iOS 16.0 - 16.7.16 (arm64). More details will follow here soon.
 
 Please note that all issues related to version support will be deleted without response.
+# FUCK NIGGA CODE NAHH

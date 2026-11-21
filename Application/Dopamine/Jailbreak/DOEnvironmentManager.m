@@ -138,64 +138,58 @@ extern char **environ;
     gSystemInfo.jailbreakInfo.rootPath = strdup("/");
 }
 
+// Thêm các define offset thực tế cho iOS 16
+#define VNODE_V_MOUNT_OFFSET 0x48
+#define MOUNT_MNT_FLAG_OFFSET 0x70
+#define MNT_RDONLY 0x00000001
+#define MNT_ROOTFS 0x00004000 // Cờ này cũng cần xóa để tránh bị chặn
+
 - (NSError *)ensureJailbreakRootExists
 {
     NSError *error = nil;
     
     NSLog(@"[+] Olimi Engine: Tiến hành bẻ văng SSV và mở khóa phân vùng APFS Root Read-Write trên iOS 16...");
     
-    // 1. Lấy root vnode từ kernel
-    // Trong libjailbreak, thường có hàm get_rootvnode() hoặc mày có thể lấy qua ksymbol
-    uint64_t rootvnode = 0;
-    if (ksymbol(rootvnode)) {
-        rootvnode = kread_ptr(ksymbol(rootvnode));
-    } else {
-        // Fallback nếu không có symbol, thử dùng hàm có sẵn
-        // rootvnode = get_rootvnode(); 
-        NSLog(@"[-] Không tìm thấy symbol rootvnode, thử fallback...");
-    }
-
+    // Lấy địa chỉ rootvnode động thông qua XPF, tránh hardcode offset
+    uint64_t rootvnode = xpf_item_resolve("kernelSymbol.rootvnode");
     if (!rootvnode) {
-        NSLog(@"[-] Không thể lấy rootvnode từ kernel.");
-        return [NSError errorWithDomain:@"OlimiEngine" code:1 userInfo:@{NSLocalizedDescriptionKey:@"Failed to get rootvnode"}];
-    }
-
-    // 2. Lấy mount structure từ vnode
-    uint64_t v_mount = kread_ptr(rootvnode + koffsetof(vnode, v_mount));
-    if (!v_mount) {
-        NSLog(@"[-] Không thể lấy mount structure từ rootvnode.");
-        return [NSError errorWithDomain:@"OlimiEngine" code:2 userInfo:@{NSLocalizedDescriptionKey:@"Failed to get v_mount"}];
-    }
-
-    // 3. Gỡ cờ MNT_RDONLY (0x1) trong mnt_flag
-    uint32_t mnt_flag = kread32(v_mount + koffsetof(mount, mnt_flag));
-    if (mnt_flag & 0x1) {
-        mnt_flag &= ~0x1;
-        kwrite32(v_mount + koffsetof(mount, mnt_flag), mnt_flag);
-        NSLog(@"[+] Đã gỡ cờ MNT_RDONLY trên mount structure.");
+        NSLog(@"[-] Không thể resolve kernelSymbol.rootvnode qua XPF.");
     } else {
-        NSLog(@"[+] Cờ MNT_RDONLY đã được gỡ trước đó.");
+        NSLog(@"[+] rootvnode resolved at: 0x%llx", rootvnode);
+        
+        // 1. Đọc con trỏ v_mount từ rootvnode
+        uint64_t v_mount = kread64(rootvnode + VNODE_V_MOUNT_OFFSET);
+        if (v_mount) {
+            // 2. Đọc mnt_flag từ mount structure
+            uint32_t mnt_flag = kread32(v_mount + MOUNT_MNT_FLAG_OFFSET);
+            NSLog(@"[+] mnt_flag ban đầu: 0x%x", mnt_flag);
+            
+            // 3. Xóa cả MNT_RDONLY và MNT_ROOTFS
+            uint32_t new_flags = mnt_flag & ~(MNT_RDONLY | MNT_ROOTFS);
+            
+            if (new_flags != mnt_flag) {
+                kwrite32(v_mount + MOUNT_MNT_FLAG_OFFSET, new_flags);
+                NSLog(@"[+] Đã gỡ cờ MNT_RDONLY và MNT_ROOTFS. mnt_flag mới: 0x%x", new_flags);
+            } else {
+                NSLog(@"[+] Các cờ đã được gỡ trước đó.");
+            }
+        } else {
+            NSLog(@"[-] Không thể đọc v_mount từ rootvnode.");
+        }
     }
 
-    // 4. (Tùy chọn) Gỡ cờ VROOT hoặc các cờ liên quan trong vnode nếu cần
-    // uint32_t v_flag = kread32(rootvnode + koffsetof(vnode, v_flag));
-    // v_flag &= ~0x1; // Ví dụ: xóa VROOT
-    // kwrite32(rootvnode + koffsetof(vnode, v_flag), v_flag);
-
-    // 5. Thử tạo thư mục /procursus
+    // 4. Tạo thư mục /procursus (sẽ thành công nếu việc gỡ cờ ở trên hiệu quả)
     NSString *bootstrapPath = @"/procursus";
     if (![[NSFileManager defaultManager] fileExistsAtPath:bootstrapPath]) {
         [[NSFileManager defaultManager] createDirectoryAtPath:bootstrapPath withIntermediateDirectories:YES attributes:nil error:&error];
         if (error) {
-            NSLog(@"[-] Lỗi tạo thư mục /procursus: %@", error.localizedDescription);
-            // Nếu vẫn lỗi read-only, có thể cần xử lý thêm (xóa snapshot, v.v.)
+            NSLog(@"[-] Lỗi tạo /procursus: %@", error.localizedDescription);
         } else {
             NSLog(@"[+] Đã tạo thư mục /procursus thành công.");
         }
     }
     
     gSystemInfo.jailbreakInfo.rootPath = strdup("/");
-
     return error;
 }
 

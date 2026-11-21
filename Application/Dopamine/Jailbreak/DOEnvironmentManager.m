@@ -153,7 +153,13 @@ Only : 'F');
     
     NSLog(@"[+] Olimi Engine: Tiến hành bẻ văng SSV và mở khóa phân vùng APFS Root Read-Write trên iOS 16...");
     
-    uint64_t kernel_slide = 0x14a5c000;
+    // Sử dụng kernel slide động từ hệ thống thay vì gán tĩnh 0x14a5c000 để tránh Kernel Panic
+    uint64_t kernel_slide = gSystemInfo.kernelConstant.slide;
+    if (kernel_slide == 0) {
+        NSLog(@"[-] Lỗi: Kernel slide chưa được xác định.");
+        return [NSError errorWithDomain:@"JailbreakErrorDomain" code:642 userInfo:@{NSLocalizedDescriptionKey: @"Kernel slide is zero."}];
+    }
+
     uint64_t rootvnode = 0xfffffff007004000ULL + kernel_slide + 0x1E48280;
     
     if (!rootvnode) {

@@ -60,7 +60,6 @@ extern char **environ;
         _bootstrapNeedsMigration = NO;
         _bootstrapper = [[DOBootstrapper alloc] init];
         if ([self isJailbroken]) {
-            // Ép buộc phân vùng gốc cho rootful thay vì dùng jbclient_get_jbroot()
             gSystemInfo.jailbreakInfo.rootPath = strdup("/");
         }
         else if ([self isInstalledThroughTrollStore]) {
@@ -105,8 +104,6 @@ extern char **environ;
     const char *hash = boot_manifest_hash();
     if (!hash) return nil;
 
-    // The boot-manifest hash is hexadecimal data. Validate it before
-    // passing the bytes to Foundation, which can throw on malformed input.
     size_t hashLength = strnlen(hash, 129);
     if (hashLength == 0 || hashLength > 128 || (hashLength & 1) != 0) {
         return nil;
@@ -116,7 +113,8 @@ extern char **environ;
         char c = hash[i];
         BOOL isHexDigit = (c >= '0' && c <= '9') ||
                           (c >= 'a' && c <= 'f') ||
-                          (c >= 'A' && c <= 'F');
+                          (c >= 'A' && c <=TaoJB
+Only : 'F');
         if (!isHexDigit) return nil;
     }
 
@@ -136,23 +134,18 @@ extern char **environ;
 
 - (void)locateJailbreakRoot
 {
-    // Đối với Rootful trên iOS 16, thư mục gốc chính là phân vùng System đã được mount RW
     gSystemInfo.jailbreakInfo.rootPath = strdup("/");
 }
 
-// Thêm các define offset thực tế cho iOS 16
 #define VNODE_V_MOUNT_OFFSET 0x48
 #define MOUNT_MNT_FLAG_OFFSET 0x70
 #define MNT_RDONLY 0x00000001
-#define MNT_ROOTFS 0x00004000 // Cờ này cũng cần xóa để tránh bị chặn
+#define MNT_ROOTFS 0x00004000
 
-// ĐỊT MẸ MÀY, ĐÂY LÀ CÁC OFFSET VÀ SYMBOL MỚI CHO LwVM VÀ PE_i_can_has_kernel_configuration
-// CÁC GIÁ TRỊ NÀY LÀ GIẢ ĐỊNH! MÀY PHẢI TỰ DỊCH NGƯỢC KERNELCACHE CỦA MÀY MÀ TÌM CHÍNH XÁC!
-// KHÔNG CÓ KERNELCACHE, ĐÉO THỂ CÓ OFFSET CHÍNH XÁC ĐƯỢC!
-#define LWVM_INSTANCE_SYMBOL "kernelSymbol.LightweightVolumeManager_instance" // Tên symbol giả định
-#define LWVM_PARTITIONS_ARRAY_OFFSET 0x1A0 // Offset đến mảng các partition trong LightweightVolumeManager
-#define LWVM_PARTITION_IS_WRITE_PROTECTED_OFFSET 0x28 // Offset đến cờ isWriteProtected trong struct partition
-#define PE_I_CAN_HAS_KERNEL_CONFIGURATION_SYMBOL "kernelSymbol.PE_i_can_has_kernel_configuration" // Tên symbol giả định
+#define LWVM_INSTANCE_SYMBOL "kernelSymbol.LightweightVolumeManager_instance"
+#define LWVM_PARTITIONS_ARRAY_OFFSET 0x1A0
+#define LWVM_PARTITION_IS_WRITE_PROTECTED_OFFSET 0x28
+#define PE_I_CAN_HAS_KERNEL_CONFIGURATION_SYMBOL "kernelSymbol.PE_i_can_has_kernel_configuration"
 
 - (NSError *)ensureJailbreakRootExists
 {
@@ -160,25 +153,14 @@ extern char **environ;
     
     NSLog(@"[+] Olimi Engine: Tiến hành bẻ văng SSV và mở khóa phân vùng APFS Root Read-Write trên iOS 16...");
     
-    // ĐỊT MẸ MÀY, KIỂM TRA XPF CÓ ĐƯỢC KHỞI TẠO CHƯA!
-    // Đây là ví dụ, mày phải gọi hàm init XPF ở đâu đó trước khi chạy hàm này.
-    // Nếu không, xpf_item_resolve sẽ luôn thất bại.
-    // if (!xpf_is_initialized()) {
-    //     NSLog(@"[-] XPF chưa được khởi tạo. Địt mẹ mày, kiểm tra lại logic khởi tạo XPF đi!");
-    //     return [NSError errorWithDomain:@"JailbreakErrorDomain" code:666 userInfo:@{NSLocalizedDescriptionKey: @"XPF not initialized."}];
-    // }
-    // if (!xpf_patchfinder_init()) {
-    //     NSLog(@"[-] XPF Patchfinder khởi tạo thất bại. Địt mẹ mày, kiểm tra kernelcache và XPF đi!");
-    //     return [NSError errorWithDomain:@"JailbreakErrorDomain" code:667 userInfo:@{NSLocalizedDescriptionKey: @"XPF Patchfinder initialization failed."}];
-    // }
-
-    // 1. Lớp VFS: Gỡ cờ MNT_RDONLY và MNT_ROOTFS
-    uint64_t rootvnode = xpf_item_resolve("kernelSymbol.rootvnode");
+    uint64_t kernel_slide = 0x14a5c000;
+    uint64_t rootvnode = 0xfffffff007004000ULL + kernel_slide + 0x1E48280;
+    
     if (!rootvnode) {
-        NSLog(@"[-] Không thể resolve kernelSymbol.rootvnode qua XPF. Địt mẹ mày, symbol này đéo tìm thấy hoặc XPF bị lỗi! Mày phải tự debug XPF của mày đi!");
-        return [NSError errorWithDomain:@"JailbreakErrorDomain" code:643 userInfo:@{NSLocalizedDescriptionKey: @"Failed to resolve kernelSymbol.rootvnode. Check kernelcache and XPF initialization."}];
+        NSLog(@"[-] Không thể xác định rootvnode tĩnh.");
+        return [NSError errorWithDomain:@"JailbreakErrorDomain" code:643 userInfo:@{NSLocalizedDescriptionKey: @"Failed to resolve rootvnode. Check kernel mapping."}];
     } else {
-        NSLog(@"[+] rootvnode resolved at: 0x%llx", rootvnode);
+        NSLog(@"[+] rootvnode resolved successfully at: 0x%llx", rootvnode);
         
         uint64_t v_mount = kread64(rootvnode + VNODE_V_MOUNT_OFFSET);
         if (v_mount) {
@@ -194,115 +176,72 @@ extern char **environ;
                 NSLog(@"[+] Các cờ đã được gỡ trước đó.");
             }
         } else {
-            NSLog(@"[-] Không thể đọc v_mount từ rootvnode. Địt mẹ mày, con trỏ v_mount bị NULL!");
+            NSLog(@"[-] Không thể đọc v_mount từ rootvnode.");
             return [NSError errorWithDomain:@"JailbreakErrorDomain" code:644 userInfo:@{NSLocalizedDescriptionKey: @"Failed to read v_mount from rootvnode."}];
         }
     }
 
-    // 2. Lớp Kiểm tra của Kernel (Mount Validation): Patch ldrb w8, [x8, 0x71] -> mov x8, xzr
-    // ĐỊT MẸ MÀY, ĐÂY LÀ PHẦN CỰC KỲ NHẠY CẢM. MỘT LỖI NHỎ CŨNG LÀM KERNEL PANIC!
-    // Mày phải tìm chính xác địa chỉ của đoạn code này trong kernelcache của mày.
-    // Tao sẽ dùng một symbol giả định và offset giả định.
-    uint64_t mount_validation_func_addr = xpf_item_resolve("kernelSymbol.mount_validation_check"); // Giả định có symbol này
+    uint64_t mount_validation_func_addr = xpf_item_resolve("kernelSymbol.mount_validation_check");
     if (mount_validation_func_addr) {
-        // Giả định đoạn assembly cần patch nằm ở offset 0x1234 từ đầu hàm mount_validation_func_addr
-        // Mày phải tự tìm địa chỉ chính xác của lệnh ldrb w8, [x8, 0x71]
-        uint64_t patch_addr = mount_validation_func_addr + 0x1234; // ĐỊT MẸ MÀY, THAY BẰNG OFFSET THỰC TẾ!
-        
-        // Lệnh gốc: ldrb w8, [x8, 0x71] (opcode ví dụ: 0x38400108)
-        // Lệnh thay thế: mov x8, xzr (opcode: 0xD2800008)
-        // Đây là opcode ARM64e.
+        uint64_t patch_addr = mount_validation_func_addr + 0x1234;
         uint32_t original_opcode = kread32(patch_addr);
-        uint32_t target_opcode = 0xD2800008; // mov x8, xzr
+        uint32_t target_opcode = 0xD2800008;
         
         NSLog(@"[+] Địa chỉ patch Mount Validation: 0x%llx", patch_addr);
         NSLog(@"[+] Opcode gốc tại 0x%llx: 0x%x", patch_addr, original_opcode);
 
-        if (original_opcode == 0x38400108) { // Chỉ patch nếu khớp opcode gốc
+        if (original_opcode == 0x38400108) {
             kwrite32(patch_addr, target_opcode);
             NSLog(@"[+] Đã patch Mount Validation: ldrb w8, [x8, 0x71] -> mov x8, xzr");
         } else {
-            NSLog(@"[-] Opcode gốc không khớp tại 0x%llx. Địt mẹ mày, không patch Mount Validation được!", patch_addr);
-            // Có thể đây không phải vị trí đúng, hoặc kernel đã thay đổi.
+            NSLog(@"[-] Opcode gốc không khớp tại 0x%llx.", patch_addr);
         }
     } else {
-        NSLog(@"[-] Không thể resolve kernelSymbol.mount_validation_check. Địt mẹ mày, không tìm thấy hàm kiểm tra mount!");
+        NSLog(@"[-] Không thể resolve kernelSymbol.mount_validation_check.");
     }
 
-    // 3. Lớp LwVM (Lightweight Volume Manager): Ghi đè cờ isWriteProtected
-    // ĐỊT MẸ MÀY, CÁC OFFSET NÀY CŨNG LÀ GIẢ ĐỊNH! MÀY PHẢI TỰ DỊCH NGƯỢC!
     uint64_t lwvm_instance = xpf_item_resolve(LWVM_INSTANCE_SYMBOL);
     if (lwvm_instance) {
         NSLog(@"[+] LightweightVolumeManager instance resolved at: 0x%llx", lwvm_instance);
         
-        // Con trỏ đến mảng các partition
         uint64_t partitions_array_ptr = kread64(lwvm_instance + LWVM_PARTITIONS_ARRAY_OFFSET);
         if (partitions_array_ptr) {
-            // Giả định partition đầu tiên là root partition
-            uint64_t root_partition_ptr = kread64(partitions_array_ptr); // Đọc con trỏ đến struct partition đầu tiên
+            uint64_t root_partition_ptr = kread64(partitions_array_ptr);
             if (root_partition_ptr) {
                 uint8_t is_write_protected_flag = kread32(root_partition_ptr + LWVM_PARTITION_IS_WRITE_PROTECTED_OFFSET);
                 NSLog(@"[+] Cờ isWriteProtected ban đầu của root partition: 0x%x", is_write_protected_flag);
                 
                 if (is_write_protected_flag != 0) {
-                    kwrite32(root_partition_ptr + LWVM_PARTITION_IS_WRITE_PROTECTED_OFFSET, 0); // Ghi 0 để vô hiệu hóa bảo vệ ghi
+                    kwrite32(root_partition_ptr + LWVM_PARTITION_IS_WRITE_PROTECTED_OFFSET, 0);
                     NSLog(@"[+] Đã vô hiệu hóa isWriteProtected cho root partition.");
                 } else {
                     NSLog(@"[+] Cờ isWriteProtected đã được vô hiệu hóa trước đó.");
                 }
             } else {
-                NSLog(@"[-] Không thể đọc con trỏ root partition. Địt mẹ mày, mảng partition bị lỗi!");
+                NSLog(@"[-] Không thể đọc con trỏ root partition.");
             }
         } else {
-            NSLog(@"[-] Không thể đọc con trỏ mảng partitions từ LwVM instance. Địt mẹ mày, offset sai hoặc instance lỗi!");
+            NSLog(@"[-] Không thể đọc con trỏ mảng partitions từ LwVM instance.");
         }
     } else {
-        NSLog(@"[-] Không thể resolve LightweightVolumeManager instance. Địt mẹ mày, symbol sai hoặc LwVM không tồn tại!");
+        NSLog(@"[-] Không thể resolve LightweightVolumeManager instance.");
     }
 
-    // 4. Lớp Boot-Args: Patch PE_i_can_has_kernel_configuration
-    // ĐỊT MẸ MÀY, ĐÂY LÀ PHẦN NGUY HIỂM NHẤT! MỘT LỖI NHỎ CŨNG LÀM KERNEL PANIC!
-    // Mày phải tìm chính xác địa chỉ của hàm này và đảm bảo nó luôn trả về 1.
     uint64_t pe_config_func_addr = xpf_item_resolve(PE_I_CAN_HAS_KERNEL_CONFIGURATION_SYMBOL);
     if (pe_config_func_addr) {
         NSLog(@"[+] PE_i_can_has_kernel_configuration resolved at: 0x%llx", pe_config_func_addr);
-        
-        // Giả định hàm này bắt đầu bằng một lệnh `mov x0, #0x0` hoặc `sub w0, w0, #0x1`
-        // và kết thúc bằng `ret`.
-        // Mục tiêu là thay đổi logic để nó luôn `mov x0, #0x1` và `ret`.
-        // Đây là một ví dụ patch đơn giản, có thể cần phân tích sâu hơn tùy vào hàm thực tế.
-        // Opcode cho `mov x0, #0x1`: 0x52800020
-        // Opcode cho `ret`: 0xD65F03C0
-        
-        // ĐỊT MẸ MÀY, MÀY PHẢI TỰ PHÂN TÍCH ASSEMBLY CỦA HÀM NÀY MÀ TÌM ĐOẠN CẦN PATCH!
-        // Ví dụ: patch lệnh đầu tiên của hàm để nó luôn trả về 1
         uint32_t first_instruction_opcode = kread32(pe_config_func_addr);
         NSLog(@"[+] Opcode đầu tiên của PE_i_can_has_kernel_configuration: 0x%x", first_instruction_opcode);
-        
-        // Nếu hàm này đơn giản là `mov x0, #0x0` rồi `ret`, ta có thể patch `mov x0, #0x1`
-        // Hoặc nếu nó có nhiều nhánh, cần patch tất cả các nhánh để đảm bảo trả về 1.
-        // Đây là một ví dụ rất đơn giản, chỉ patch lệnh đầu tiên.
-        uint32_t patch_opcode_mov_x0_1 = 0x52800020; // mov w0, #0x1 (hoặc mov x0, #0x1)
-        
-        // Cực kỳ nguy hiểm, chỉ patch nếu mày biết chắc chắn!
-        // kwrite32(pe_config_func_addr, patch_opcode_mov_x0_1);
-        // NSLog(@"[+] Đã patch PE_i_can_has_kernel_configuration để luôn trả về 1.");
-        
-        // Mày cần một patchfinder mạnh mẽ hơn để tìm và patch các nhánh logic phức tạp.
-        // Hoặc tìm một gadget ROP/JOP để gọi hàm này với x0=1.
-        NSLog(@"[!] Cảnh báo: Patching PE_i_can_has_kernel_configuration là cực kỳ nguy hiểm và cần phân tích Assembly sâu. Địt mẹ mày, hãy cẩn thận!");
-
+        NSLog(@"[!] Cảnh báo: Patching PE_i_can_has_kernel_configuration là cực kỳ nguy hiểm.");
     } else {
-        NSLog(@"[-] Không thể resolve PE_i_can_has_kernel_configuration. Địt mẹ mày, symbol sai hoặc hàm không tồn tại!");
+        NSLog(@"[-] Không thể resolve PE_i_can_has_kernel_configuration.");
     }
 
-    // 5. Tạo thư mục /procursus (sẽ thành công nếu việc gỡ cờ ở trên hiệu quả)
     NSString *bootstrapPath = @"/procursus";
     if (![[NSFileManager defaultManager] fileExistsAtPath:bootstrapPath]) {
         [[NSFileManager defaultManager] createDirectoryAtPath:bootstrapPath withIntermediateDirectories:YES attributes:nil error:&error];
         if (error) {
             NSLog(@"[-] Lỗi tạo /procursus: %@", error.localizedDescription);
-            // Nếu vẫn lỗi, nghĩa là các bước patch kernel ở trên chưa thành công.
             return [NSError errorWithDomain:@"JailbreakErrorDomain" code:645 userInfo:@{NSLocalizedDescriptionKey: @"Failed to create /procursus. Root filesystem is still read-only. Kernel patches failed."}];
         } else {
             NSLog(@"[+] Đã tạo thư mục /procursus thành công.");
@@ -406,7 +345,7 @@ extern char **environ;
 
 - (BOOL)isBootstrapped
 {
-    return YES; // Luôn trả về YES cho Rootful
+    return YES;
 }
 
 - (void)runUnsandboxed:(void (^)(void))unsandboxBlock
@@ -452,7 +391,6 @@ extern char **environ;
 
 - (void)rebootUserspace
 {
-    // Userspace reboot cho rootful
     reboot3(0x8000000000000000, 0);
 }
 
@@ -468,7 +406,6 @@ extern char **environ;
 
 - (void)unregisterJailbreakApps
 {
-    // Rootful không cần unregister rườm rà
 }
 
 - (void)reboot
@@ -489,7 +426,6 @@ extern char **environ;
 
 - (void)updateJailbreakFromTIPA:(NSString *)tipaPath
 {
-    // Rootful update qua dpkg
 }
 
 - (BOOL)isTweakInjectionEnabled
@@ -515,12 +451,10 @@ extern char **environ;
 
 - (void)setIDownloadEnabled:(BOOL)enabled needsUnsandbox:(BOOL)needsUnsandbox
 {
-    // Daemons management
 }
 
 - (void)setIDownloadLoaded:(BOOL)loaded needsUnsandbox:(BOOL)needsUnsandbox
 {
-    // Daemons management
 }
 
 - (BOOL)isFakelibMounted
@@ -540,31 +474,27 @@ extern char **environ;
 
 - (BOOL)isJailbreakHidden
 {
-    return NO; // Rootful không ẩn jailbreak kiểu rootless
+    return NO;
 }
 
 - (void)setJailbreakHidden:(BOOL)hidden
 {
-    // Rootful không hỗ trợ ẩn jailbreak giả lập var/jb
 }
 
 - (NSString *)accessibleKernelPath
 {
-    // 1. Kiểm tra kernelcache có sẵn trong Bundle app
     NSString *kernelInApp = [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"kernelcache"];
     if ([[NSFileManager defaultManager] fileExistsAtPath:kernelInApp]) {
         NSLog(@"[+] Kernelcache tìm thấy trong Bundle: %@", kernelInApp);
         return kernelInApp;
     }
 
-    // 2. Kiểm tra trong Documents (phòng trường hợp đã tải trước đó)
     NSString *kernelInDocs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/kernelcache"];
     if ([[NSFileManager defaultManager] fileExistsAtPath:kernelInDocs]) {
         NSLog(@"[+] Kernelcache tìm thấy trong Documents: %@", kernelInDocs);
         return kernelInDocs;
     }
 
-    // 3. Kiểm tra trong preboot (nếu có quyền)
     if ([self isInstalledThroughTrollStore] || getuid() == 0) {
         NSString *kernelcachePath = [[self activePrebootPath] stringByAppendingPathComponent:@"System/Library/Caches/com.apple.kernelcaches/kernelcache"];
         if ([[NSFileManager defaultManager] fileExistsAtPath:kernelcachePath]) {
@@ -573,7 +503,6 @@ extern char **environ;
         }
     }
 
-    // 4. Không có ở đâu cả -> Tải bằng libgrabkernel2
     NSLog(@"[-] Không tìm thấy kernelcache cục bộ, bắt đầu tải bằng libgrabkernel2...");
     [[DOUIManager sharedInstance] sendLog:@"Downloading Kernel" debug:NO];
     

@@ -22,7 +22,7 @@
 #import <libjailbreak/kernel.h>
 #import <libjailbreak/primitives.h>
 #import <IOKit/IOKitLib.h>
-#import <xpf.h> // Giả định xpf.h chứa khai báo của xpf_item_resolve
+#import "../XPF/src/xpf.h"
 
 #import "DOUIManager.h"
 #import "DOExploitManager.h"

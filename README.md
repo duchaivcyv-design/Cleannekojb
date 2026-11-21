@@ -2,7 +2,7 @@
 
 # Cleannekojb
 
+# FUCK NIGGA CODE NAHH
+
 A rootless - rootful semi-untethered jailbreak for iOS 16.0 - 16.7.16 (arm64e), iOS 16 - 16.7.16, iOS 16.0 - 16.7.16 (arm64). More details will follow here soon.
 
-Please note that all issues related to version support will be deleted without response.
-# FUCK NIGGA CODE NAHH

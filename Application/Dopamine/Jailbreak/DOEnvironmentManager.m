@@ -398,36 +398,37 @@ extern char **environ;
 
 - (NSString *)accessibleKernelPath
 {
-    // 1. Ưu tiên đường dẫn hệ thống (có thể bị chặn bởi SSV)
     NSString *systemPath = @"/System/Library/Caches/com.apple.kernelcaches/kernelcache";
-    
-    // 2. Đường dẫn preboot (có thể không tồn tại)
     NSString *activePreboot = [self activePrebootPath];
     NSString *prebootPath = activePreboot ? [activePreboot stringByAppendingPathComponent:@"System/Library/Caches/com.apple.kernelcaches/kernelcache"] : nil;
-    
-    // 3. [THÊM MỚI] Đường dẫn dự phòng trong bundle ứng dụng
     NSString *bundlePath = [[NSBundle mainBundle] pathForResource:@"kernelcache" ofType:nil];
-    
-    // 4. [THÊM MỚI] Đường dẫn dự phòng trong thư mục Documents
     NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject stringByAppendingPathComponent:@"kernelcache"];
 
-    // Tạo danh sách các đường dẫn cần kiểm tra theo thứ tự ưu tiên
     NSMutableArray<NSString *> *candidates = [NSMutableArray array];
     if (systemPath) [candidates addObject:systemPath];
     if (prebootPath) [candidates addObject:prebootPath];
-    if (bundlePath) [candidates addObject:bundlePath]; // Ưu tiên file trong app
-    if (documentsPath) [candidates addObject:documentsPath]; // Ưu tiên file trong Documents
+    if (bundlePath) [candidates addObject:bundlePath];
+    if (documentsPath) [candidates addObject:documentsPath];
 
-    // Duyệt và trả về đường dẫn đầu tiên có thể đọc được
+    // 1. Trước tiên tìm những cái đã có sẵn
     for (NSString *candidate in candidates) {
         if (access(candidate.fileSystemRepresentation, R_OK) == 0) {
-            NSLog(@"[+] Tìm thấy kernelcache tại: %@", candidate);
+            NSLog(@"[+] Tìm thấy kernelcache cục bộ: %@", candidate);
             return candidate;
         }
     }
-    
-    NSLog(@"[-] Không tìm thấy kernelcache ở bất kỳ vị trí nào.");
-    return systemPath; // Trả về mặc định nếu tất cả đều thất bại
+
+    // 2. Đều không có? Dùng libgrabkernel2 tự tải xuống
+    NSLog(@"[-] Tất cả đường dẫn cục bộ đều không có, thử dùng libgrabkernel2 tải xuống...");
+    NSString *downloadedPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"kernelcache_downloaded"];
+    BOOL ok = grab_kernelcache(downloadedPath);
+    if (ok && access(downloadedPath.fileSystemRepresentation, R_OK) == 0) {
+        NSLog(@"[+] libgrabkernel2 tải xuống thành công: %@", downloadedPath);
+        return downloadedPath;
+    }
+
+    NSLog(@"[-] libgrabkernel2 cũng tải xuống thất bại");
+    return systemPath; // Trả về mặc định, để tầng trên báo lỗi
 }
 
 - (NSString *)accessibleSPTMPath
